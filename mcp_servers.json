@@ -1,6 +1,6 @@
 {
   "Demo": {
     "protocol": "stdio",
-    "command": "python /Users/maheshnagaraj/Documents/Learning/MCPRegistry/OneMCPServer1.py"
+    "command": "python ./OneMCPServer.py"
   }
 }
