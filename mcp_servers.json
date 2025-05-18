@@ -1,6 +1,7 @@
 {
   "Demo": {
     "protocol": "stdio",
-    "command": "python ./OneMCPServer.py"
+    "command": "python",
+    "program": "./OneMCPServer.py"
   }
 }

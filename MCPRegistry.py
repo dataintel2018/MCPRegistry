@@ -36,12 +36,13 @@ def save_servers(servers: Dict[str, Dict[str, str]]) -> bool:
 class MCPClient:
     """Client for interacting with Model Context Protocol servers"""
     
-    def __init__(self, server_url: str = None, command: str = None, protocol: str = "http"):
+    def __init__(self, server_url: str = None, command: str = None, program: str = None, protocol: str = "http"):
         """Initialize the MCP client
         
         Args:
             server_url: The URL for HTTP protocol servers
             command: The command to execute for stdio protocol servers
+            arguments: The arguments to be passed to the command
             protocol: Either "http" or "stdio"
         """
         self.protocol = protocol
@@ -56,13 +57,13 @@ class MCPClient:
             self.server_url = server_url.rstrip("/") if server_url else None
         elif protocol == "stdio":
             self.command = command
-            command = "python"
+            #command = "python"
             self.server_params = StdioServerParameters(
                 command=command,
-                args=["/Users/maheshnagaraj/Documents/Learning/MCPRegistry/OneMCPServer.py"],
+                args=[program],
                 env=None
             )
-            #self.initialize_stdio_process()
+            #self.server_params = None
         else:
             raise ValueError(f"Unsupported protocol: {protocol}")
 
@@ -78,13 +79,13 @@ class MCPClient:
             raise ValueError("Server script must be a .py or .js file")
 
         command = "python" if is_python else "node"
-        server_params = StdioServerParameters(
-            command=command,
-            args=[server_script_path],
-            env=None
-        )
+        # self.server_params = StdioServerParameters(
+        #     command=command,
+        #     args=[server_script_path],
+        #     env=None
+        # )
 
-        stdio_transport = await self.exit_stack.enter_async_context(stdio_client(server_params))
+        stdio_transport = await self.exit_stack.enter_async_context(stdio_client(self.server_params))
         self.stdio, self.write = stdio_transport
         self.session = await self.exit_stack.enter_async_context(ClientSession(self.stdio, self.write))
 
@@ -95,28 +96,6 @@ class MCPClient:
         tools = response.tools
         print("\nConnected to server with tools:", [tool.name for tool in tools])
         return self.get_server_info()
-
-
-    def initialize_stdio_process(self):
-        """Initialize the stdio process"""
-        print("Initialize")
-        if not self.command:
-            return
-        
-        stdio_transport = asyncio.run(self.exit_stack.enter_async_context(stdio_client(self.server_params)))
-        self.stdio, self.write = stdio_transport
-        self.session = asyncio.run(self.exit_stack.enter_async_context(ClientSession(self.stdio, self.write)))
-
-        asyncio.run(self.session.initialize())
-
-        # try:
-        #     (read,write) = async stdio_client(self.server_params)
-        #     self.session = ClientSession(read, write)
-        #     print("did I come here")
-        #     self.session.initialize()
-        # except Exception as e:
-        #     st.error(f"Error starting stdio process: {str(e)}")
-        #     self.cleanup()
 
     def get_server_info(self) -> Dict[str, Any]:
         """Get information about the MCP server"""
@@ -242,12 +221,12 @@ def main():
                         st.error(f"Failed to connect to MCP server at {server_url}")
         
         else:  # stdio protocol
-            # Input for command to execute
-            command = st.text_input(
-                "Command to Execute",
-                placeholder="Enter the command to start the MCP server",
-                key="command_input"
-            )
+            # # Input for command to execute
+            # command = st.text_input(
+            #     "Command to Execute",
+            #     placeholder="Enter the command to start the MCP server",
+            #     key="command_input"
+            # )
             
             # Add a server selection dropdown
             stdio_servers = {name: details for name, details in st.session_state.saved_servers.items() 
@@ -263,6 +242,7 @@ def main():
             
             if selected_server and selected_server != "Custom":
                 command = stdio_servers[selected_server]["command"]
+                program = stdio_servers[selected_server]["program"]
                 #st.session_state.command_input = command
             
             # Initialize client only if connect button is pressed
@@ -274,7 +254,7 @@ def main():
                     if st.session_state.client:
                         st.session_state.client=None
                     
-                    st.session_state.client = MCPClient(command=command, protocol="stdio")
+                    st.session_state.client = MCPClient(command=command, program=program, protocol="stdio")
                     
                     
                     # Get server info
@@ -321,7 +301,7 @@ def main():
         
         if st.session_state.saved_servers:
             for i, (name, details) in enumerate(st.session_state.saved_servers.items()):
-                col1, col2, col3, col4 = st.columns([2, 1, 6, 1])
+                col1, col2, col3, col4, col5 = st.columns([2, 1, 6, 5, 1])
                 with col1:
                     st.text(name)
                 with col2:
@@ -332,6 +312,11 @@ def main():
                     else:
                         st.text(details.get("command", ""))
                 with col4:
+                    if details.get("protocol") == "http":
+                        st.text(details.get("url", ""))
+                    else:
+                        st.text(details.get("program", ""))                        
+                with col5:
                     if st.button("Delete", key=f"delete_{i}"):
                         del st.session_state.saved_servers[name]
                         save_servers(st.session_state.saved_servers)
@@ -350,10 +335,12 @@ def main():
             
             if new_protocol == "HTTP":
                 new_server_url = st.text_input("Server URL", placeholder="Enter the URL of the server")
-                new_server_command = ""
+                #new_server_url = ""
+                
             else:  # stdio
                 new_server_command = st.text_input("Command", placeholder="Enter the command to start the server")
-                new_server_url = ""
+                new_server_program = st.text_input("server_program", placeholder="Enter the server program with absolute path")
+                #new_server_command = ""
             
             submitted = st.form_submit_button("Add Server")
             if submitted:
@@ -363,6 +350,8 @@ def main():
                     st.warning("Please provide a URL for the HTTP server")
                 elif new_protocol == "stdio" and not new_server_command:
                     st.warning("Please provide a command for the stdio server")
+                elif new_protocol == "stdio" and not new_server_program:
+                    st.warning("Please provide a server program with absolute path for the stdio server")                    
                 else:
                     server_data = {
                         "protocol": new_protocol.lower(),
@@ -372,6 +361,7 @@ def main():
                         server_data["url"] = new_server_url
                     else:
                         server_data["command"] = new_server_command
+                        server_data["program"] = new_server_program
                     
                     st.session_state.saved_servers[new_server_name] = server_data
                     
