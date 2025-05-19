@@ -59,8 +59,8 @@ class MCPClient:
             self.command = command
             #command = "python"
             self.server_params = StdioServerParameters(
-                command=command,
-                args=[program],
+                command="uv",
+                args=["run", "OneMCPServer.py"],
                 env=None
             )
             #self.server_params = None
