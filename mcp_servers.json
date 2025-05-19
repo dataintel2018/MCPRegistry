@@ -1,7 +1,7 @@
 {
   "Demo": {
     "protocol": "stdio",
-    "command": "python",
+    "command": "uv run",
     "program": "OneMCPServer.py"
   }
 }
