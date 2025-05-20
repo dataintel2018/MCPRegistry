@@ -1,6 +1,6 @@
 # server.py
 from mcp.server.fastmcp import FastMCP
-import requests
+#import requests
 from typing import List, Dict, Optional, Any, Union, Tuple
 
 # Create an MCP server
